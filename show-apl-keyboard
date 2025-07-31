@@ -1,0 +1,106 @@
+#!/bin/bash
+#shellcheck disable=SC2166,SC2076,SC2034,SC2016
+version=1.0
+
+# Source of the information
+file="$HOME/.XCompose"
+
+# These are the select character (right after Multi_key) used in the composition configuration.
+selkey=(grave backslash)
+# Known indices into the selkey array.
+apl=0
+bqn=1
+
+# ANSI color selection.  By default when a terminal is used for output.
+use_color_yes=(always yes force)
+use_color_no=(never no none)
+use_color_auto=(auto tty if-tty)
+use_color_default=${use_color_auto[0]}
+use_color="$use_color_default"
+
+# Return true if color output is wanted, otherwise false.
+function get_colors() {
+  if [[ " ${use_color_yes[*]} " =~ " $use_color " ]]; then
+    for c in 0 34 31 36; do
+      printf '\x1b[%dm\n' "$c"
+    done
+  fi
+}
+
+# Based on the file name determine the default: APL or BQN.
+if [[ "$0" =~ bqn ]]; then
+  select=$bqn
+else
+  select=$apl
+fi
+
+while getopts "abc:f:hs:v" ARG; do
+  case $ARG in
+    a) select=$apl;;
+    b) select=$bqn;;
+    c) if [[ " ${use_color_yes[*]} ${use_color_no[*]} ${use_color_auto[*]} " =~ " $OPTARG " ]]; then
+         use_color="$OPTARG"
+       else
+         printf "%s: invalid argument '%s' for '-c'\n" "$0" "$OPTARG"
+         printf "Valid arguments are:\n"
+         printf "  -%s\n" "$(printf " '%s'" "${use_color_no[@]}")"
+         printf "  -%s\n" "$(printf " '%s'" "${use_color_yes[@]}")"
+         printf "  -%s\n" "$(printf " '%s'" "${use_color_auto[@]}")"
+         exit 1
+       fi;;
+    f) file="$OPTARG";;
+    h) printf "Usage: %s [OPTION]...\n" "$0"
+       printf "Show selected key mapping composed through XKB.\n\n"
+       printf "   -a          Select APL mappings indicate by map selection with <%s>.\n" "${selkey[$apl]}"
+       printf "   -b          Select BQN mappings indicate by map selection with <%s>.\n" "${selkey[$bqn]}"
+       printf "   -s SELECT   Use SELECT to indicate map selection.\n\n"
+       printf "   -f FILE     Read compose data from FILE (default: %s).\n\n" "$file"
+       printf "   -c WHEN     Color the output WHEN (default: %s).\n\n" "$use_color_default"
+       printf "   -h          Display this help and exit.\n"
+       printf "   -v          Output version information and exit.\n\n"
+       printf "The WHEN argument defaults to 'auto' and can also be 'always' or 'never'.\n"
+       exit 0;;
+    s) select=${#selkey[@]}; selkey+=("$OPTARG");;
+    v) printf "%s %s\nCopyright © %d %s.\nThere is NO WARRANTY, to the extent permitted by law.\n" "$(basename "$0")" $version 2025 'Ulrich Drepper'; exit 0;;
+    ?) printf "Try '%s -h' for more information.\n" "$0"; exit 1;;
+  esac
+done
+
+[ -r "$file" ] || {
+  printf "Cannot use \"%s\": %s\n" "$file" "$(if [ -e "$file" ]; then echo "file not readable"; else echo "file does not exist"; fi)"
+  exit 1
+}
+
+# If we have to detect a terminal as output do it now
+if [[ " ${use_color_auto[*]} " =~ " $use_color " ]] && test -t 1; then
+  use_color="${use_color_yes[0]}"
+fi
+
+# The colors to use, if any
+mapfile -t colors < <(get_colors)
+
+# Generate the sed expression to fill in the selected information.
+expr=$(sed -n "s/^[[:space:]]*<Multi_key>[[:space:]]*<${selkey[select]}>[[:space:]]*\(.*\"\)[^\"]*$/\1/p" "$file" | while read -r l c r; do
+  /usr/bin/printf 's/@@%1$s /%4$s%2$s%3$s /;s/__%1$s /%5$s%2$s%3$s /;' "${l:1:${#l}-2}" "${r:1:${#r}-2}" "${colors[0]}" "${colors[2]}" "${colors[3]}"
+done)
+
+# Derived from a picture attached to a Stack Exchange discussion:
+# https://chat.stackexchange.com/transcript/52405/2019/4/26
+cat <<"EOF" | sed "${expr};s/\(@@\|__\)[[:alnum:]]*/ /g;s/A0/${colors[0]}/g;s/A1/${colors[1]}/g"
+┌────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬─────────┐
+│A1~A0 @@asciitilde │A1!A0 @@exclam │A1@A0 @@at │A1#A0 @@numbersign │A1$A0 @@dollar │A1%A0 @@percent │A1^A0 @@asciicircum │A1&A0 @@ampersand │A1*A0 @@asterisk │A1(A0 @@parenleft │A1)A0 @@parenright │A1_A0 @@underscore │A1+A0 @@plus │         │
+│` __grave │1 __1 │2 __2 │3 __3 │4 __4 │5 __5 │6 __6 │7 __7 │8 __8 │9 __9 │0 __0 │- __minus │= __equal │Backslash│
+├────┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬──────┤
+│       │A1QA0 @@Q │A1WA0 @@W │A1EA0 @@E │A1RA0 @@R │A1TA0 @@T │A1YA0 @@Y │A1UA0 @@U │A1IA0 @@I │A1OA0 @@O │A1PA0 @@P │A1{A0 @@braceleft │A1}A0 @@braceright │A1|A0 @@bar   │
+│Tab    │q __q │w __w │e __e │r __r │t __t │y __y │u __u │i __i │o __o │p __p │[ __bracketleft │] __bracketright │\ __backslash   │
+├───────┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴─┬──┴──────┤
+│         │A1AA0 @@A │A1SA0 @@S │A1DA0 @@D │A1FA0 @@F │A1GA0 @@G │A1HA0 @@H │A1JA0 @@J │A1KA0 @@K │A1LA0 @@L │A1:A0 @@colon │A1"A0 @@quotedbl │         │
+│Mouse    │a __a │s __s │d __d │f __f │g __g │h __h │j __j │k __k │l __l │; __semicolon │' __apostrophe │    Enter│
+├─────────┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴──┬─┴─────────┤
+│            │A1ZA0 @@Z │A1XA0 @@X │A1CA0 @@C │A1VA0 @@V │A1BA0 @@B │A1NA0 @@N │A1MA0 @@M │A1<A0 @@less │A1>A0 @@greater │A1?A0 @@question │           │
+│Shift       │z __z │x __x │c __c │v __v │b __b │n __n │m __m │, __comma │. __period │/ __slash │      Shift│
+├───────┬────┴─┬──┴───┬┴────┴────┴────┴────┴────┴┬───┴──┬─┴────┼─────┬─────┤
+│       │      │      │                          │      │      │     │     │
+│Ctrl   │Win   │Alt   │        Space   __space         │   Alt│   Win│ Menu│ Ctrl│
+└───────┴──────┴──────┴──────────────────────────┴──────┴──────┴─────┴─────┘
+EOF
