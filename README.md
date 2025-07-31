@@ -32,6 +32,11 @@ Example: to enter 𝕨 from the BQN keymap use `compose \ w`.
 
 Example 2: to enter ⎕ from the APL keymap use `compose &#96; l`
 
+NB: The script does not hardcode the mapping data.  It uses the XCompose file it installs
+as `$HOME/.XCompose` (or the file specified by the `-f` option).  Any changes to the XCompose
+file are automatically reflected in the output of the script but need program restarts
+to be applied to the programs' settings.
+
 ## Screenshots:
 
 The APL keymap as defined in the XCompose file:
