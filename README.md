@@ -28,9 +28,9 @@ the backslash for BQN.  The script supports other arbitrary prefixes using the `
 
 Use the `-h` option to see the details of the script parameters.
 
-Example: to enter 𝕨 from the BQN keymap use `compose \\ w`.
+Example: to enter 𝕨 from the BQN keymap use `compose \ w`.
 
-Example 2: to enter ⎕ from the APL keymap use `compose \` l`
+Example 2: to enter ⎕ from the APL keymap use `compose &#96; l`
 
 ## Screenshots:
 
